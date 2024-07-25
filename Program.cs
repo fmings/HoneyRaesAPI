@@ -56,7 +56,7 @@ List<ServiceTicket> serviceTickets = new List<ServiceTicket>()
     {
     Id = 12,
     CustomerId = 2,
-    EmployeeId = 1234,
+    EmployeeId = null,
     Description = "Houston, we have a problem.",
     Emergency = true,
     DateCompleted = null
@@ -90,6 +90,36 @@ List<ServiceTicket> serviceTickets = new List<ServiceTicket>()
     Description = "Actually, everything is good.",
     Emergency = false,
     DateCompleted = new DateTime(2024, 7, 20)
+    },
+
+    new ServiceTicket()
+    {
+    Id = 16,
+    CustomerId = 2,
+    EmployeeId = 4567,
+    Description = "Date Test 1",
+    Emergency = false,
+    DateCompleted = new DateTime(2024, 6, 19)
+    },
+
+    new ServiceTicket()
+    {
+    Id = 17,
+    CustomerId = 2,
+    EmployeeId = 4567,
+    Description = "Date Test 2",
+    Emergency = false,
+    DateCompleted = new DateTime(2024, 7, 21)
+    },
+
+    new ServiceTicket()
+    {
+    Id = 18,
+    CustomerId = 2,
+    EmployeeId = 4567,
+    Description = "Date Test 2",
+    Emergency = false,
+    DateCompleted = null
     }
 };
 
@@ -204,6 +234,7 @@ app.MapPost("/servicetickets/{id}/complete", (int id) =>
     ticketToComplete.DateCompleted = DateTime.Today;
 });
 
+// Emergency Tickets
 app.MapGet("/servicetickets/emergency", () =>
 {
     List<ServiceTicket> incompleteEmergencies = serviceTickets.Where(st => st.DateCompleted == null && st.Emergency).ToList();
@@ -214,6 +245,7 @@ app.MapGet("/servicetickets/emergency", () =>
     return Results.Ok(incompleteEmergencies);
 });
 
+// Unassigned Tickets
 app.MapGet("/servicetickets/unassigned", () =>
 {
     List<ServiceTicket> unassignedTickets = serviceTickets.Where(st => st.EmployeeId == null).ToList();
@@ -224,6 +256,7 @@ app.MapGet("/servicetickets/unassigned", () =>
     return Results.Ok(unassignedTickets);
 });
 
+// Inactive Customers
 app.MapGet("/customers/archived", () =>
 {
     DateTime oneYearAgo = DateTime.Now.AddYears(-1);
@@ -235,6 +268,7 @@ app.MapGet("/customers/archived", () =>
     return Results.Ok(archivedCustomers);
 });
 
+// Available Employees
 app.MapGet("/employees/available", () =>
 {
     List<Employee> availableEmployees = employees.Where(e => !serviceTickets.Any(st => st.EmployeeId == e.Id && st.DateCompleted == null)).ToList();
@@ -244,6 +278,59 @@ app.MapGet("/employees/available", () =>
     }
     return Results.Ok(availableEmployees);
 });
+
+// Employee's Customers
+app.MapGet("/employees/{id}/customers", (int id) =>
+{
+    var customerIds = serviceTickets.Where(st => st.EmployeeId == id).Select(st => st.CustomerId).Distinct().ToList();
+
+    List<Customer> employeesCustomers = customers.Where(c => customerIds.Contains(c.Id)).ToList();
+
+    if (employeesCustomers.Count == 0)
+    {
+        return Results.NotFound();
+    }
+    return Results.Ok(employeesCustomers);
+});
+
+// Employee of the Month
+app.MapGet("/monthlyemployee", () =>
+{
+    var employeeCompletedTicketCounts = serviceTickets
+    .Where(st => st.EmployeeId != null && st.DateCompleted != null)
+    .GroupBy(st => st.EmployeeId)
+    .Select(group => new
+    {
+        EmployeeId = group.Key,
+        TicketCount = group.Count()
+    })
+    .OrderByDescending(x => x.TicketCount)
+    .FirstOrDefault();
+
+    if (employeeCompletedTicketCounts == null)
+    {
+        return Results.NotFound();
+    }
+
+    var highestTicketCountEmployee = employees.FirstOrDefault(e => e.Id == employeeCompletedTicketCounts.EmployeeId);
+
+    return Results.Ok(highestTicketCountEmployee);
+});
+
+// Past Ticket Review
+app.MapGet("/completedtickets", () =>
+{
+   return serviceTickets.Where(st => st.DateCompleted != null).OrderBy(st => st.DateCompleted);
+});
+
+// Prioritized Tickets
+app.MapGet("/prioritytickets", () =>
+{
+    List<ServiceTicket> incompleteTickets = serviceTickets.Where(st => st.DateCompleted == null).ToList();
+    List<ServiceTicket> sortedTickets = incompleteTickets.OrderByDescending(st => st.Emergency).ThenByDescending(st => st.EmployeeId).ToList();
+    return Results.Ok(sortedTickets);
+});
+
 
 app.Run();
 

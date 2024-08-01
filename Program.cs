@@ -211,7 +211,7 @@ app.MapDelete("/api/servicetickets/{id}", (int id) =>
     return Results.NoContent();
 });
 
-app.MapPatch("/api/servicetickets/{id}", (int id, ServiceTicket serviceTicket) =>
+app.MapPut("/api/servicetickets/{id}", (int id, ServiceTicket serviceTicket) =>
 {
     ServiceTicket ticketToUpdate = serviceTickets.FirstOrDefault(st => st.Id == id);
     int ticketIndex = serviceTickets.IndexOf(ticketToUpdate);
